@@ -1,0 +1,62 @@
+{
+  "source": "agrimind-hero.mp4",
+  "sourceDuration": 10.0,
+  "frameCount": 160,
+  "fps": 16,
+  "indexPad": 4,
+  "poster": "/assets/hero-frames/poster.webp",
+  "sets": {
+    "desktop": {
+      "width": 1440,
+      "height": 810,
+      "pattern": "/assets/hero-frames/desktop/frame_{index}.webp"
+    },
+    "mobile": {
+      "width": 768,
+      "height": 432,
+      "pattern": "/assets/hero-frames/mobile/frame_{index}.webp"
+    }
+  },
+  "zones": [
+    {
+      "id": "production",
+      "title": "Crop Production Tracking",
+      "start": 0.0,
+      "end": 2.3,
+      "firstFrame": 0,
+      "lastFrame": 35
+    },
+    {
+      "id": "irrigation",
+      "title": "Pre-Irrigation Management",
+      "start": 2.3,
+      "end": 3.9,
+      "firstFrame": 36,
+      "lastFrame": 61
+    },
+    {
+      "id": "leaf",
+      "title": "AI Leaf Prediction",
+      "start": 3.9,
+      "end": 5.3,
+      "firstFrame": 62,
+      "lastFrame": 83
+    },
+    {
+      "id": "price",
+      "title": "Crop Price Prediction",
+      "start": 5.3,
+      "end": 7.3,
+      "firstFrame": 84,
+      "lastFrame": 115
+    },
+    {
+      "id": "recommend",
+      "title": "AI Crop Recommendation",
+      "start": 7.3,
+      "end": 10.0,
+      "firstFrame": 116,
+      "lastFrame": 159
+    }
+  ]
+}

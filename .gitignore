@@ -1,0 +1,25 @@
+node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+backend/.env
+backend/data/
+.env
+# Python
+.venv/
+.venv-1/
+venv/
+__pycache__/
+tempCodeRunnerFile.py
+
+# Node
+node_modules/
+dist/
+
+# Secrets
+.env
+
+# Heavy data (not needed on the server)
+train/
+ezgif-*/
+reports/models/plant_disease_model.keras

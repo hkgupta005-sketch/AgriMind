@@ -1,0 +1,18 @@
+# AgriMind web backend
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+python-multipart>=0.0.9
+python-dotenv>=1.0
+SQLAlchemy>=2.0
+mysql-connector-python>=8.3
+# Used by the existing AgriMind models (match the versions they were trained with)
+joblib
+numpy
+pandas
+scipy
+scikit-learn
+Pillow
+# Leaf prediction model (.keras) and the Gemini assistant (chatbot.py)
+tensorflow
+google-genai
