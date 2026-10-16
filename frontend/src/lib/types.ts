@@ -12,6 +12,7 @@ export interface GuideField {
 export interface Guide {
   tool: ToolKey;
   available: boolean;
+  unavailable_message?: string | null;
   question: string;
   output: string;
   time: string;
@@ -93,9 +94,9 @@ export interface CropRecord {
 
 export interface Activity { id: number; kind: string; title: string; detail: string | null; link: string | null; created_at: string }
 
-export interface ModelStatus { label: string; state: "pending" | "loading" | "ready" | "missing" | "error"; error: string | null }
+export interface ModelStatus { label: string; state: "pending" | "loading" | "ready" | "missing" | "error" | "unavailable"; error: string | null }
 export interface Health {
-  status: string; database: { backend: "mysql" | "sqlite"; connected: boolean };
+  status: string; database: { backend: "mysql" | "sqlite" | "none"; connected: boolean };
   models: Record<"production" | "irrigation" | "price" | "crop" | "leaf" | "chatbot", ModelStatus>;
   assistant: string;
 }

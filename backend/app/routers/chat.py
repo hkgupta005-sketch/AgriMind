@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from .. import auth
 from ..config import settings
 from ..db import get_db
-from ..ml import leaf
+from ..ml import leaf, loader
 from ..models import ChatConversation, ChatMessage, User
 from ..schemas import ChatIn
 from ..services import assistant
@@ -31,17 +31,31 @@ def _rate_key(request: Request, user: User | None):
     return f"user:{user.id}" if user else f"ip:{request.client.host if request.client else 'unknown'}"
 
 
-async def _ask(message: str, previous_id: str | None):
+def _remove(path):
     try:
-        return await asyncio.wait_for(asyncio.to_thread(assistant.ask_blocking, message, previous_id),
-                                      timeout=settings.chat_timeout_s)
+        os.remove(path)
+    except OSError:
+        pass
+
+
+async def _ask(message: str, previous_id: str | None, temp_file: str | None = None):
+    def run():
+        try:
+            return assistant.ask_blocking(message, previous_id)
+        finally:  # here, not in the request: after a timeout the worker may still be reading the photo
+            if temp_file:
+                _remove(temp_file)
+
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(run), timeout=settings.chat_timeout_s)
     except asyncio.TimeoutError:
         raise HTTPException(504, {"code": "timeout", "message": "That took too long, please try again."})
     except assistant.AssistantError as e:
-        raise HTTPException(e.status, {"code": e.code, "message": e.message})
+        raise HTTPException(e.status, {"code": e.code, "message": e.message, "detail": e.detail})
 
 
-async def _handle(message: str, conversation_id: str | None, user: User | None, db: Session):
+async def _handle(message: str, conversation_id: str | None, user: User | None, db: Session,
+                  temp_file: str | None = None):
     stored = user is not None and not user.is_guest
     conv = None
     previous_id = None
@@ -55,7 +69,7 @@ async def _handle(message: str, conversation_id: str | None, user: User | None, 
         else:
             previous_id = _session_threads.get(conversation_id)
 
-    reply, gemini_id, tools = await _ask(message, previous_id)
+    reply, gemini_id, tools = await _ask(message, previous_id, temp_file)
     conversation_id = (conv.id if conv else conversation_id) or str(uuid.uuid4())
 
     if stored:
@@ -88,6 +102,8 @@ async def chat_image(request: Request, photo: UploadFile = File(...), message: s
     """Leaf photo for the assistant: saved to a temporary file for detect_plant_disease, then deleted."""
     if not limiter.allow(_rate_key(request, user)):
         raise HTTPException(429, {"code": "rate_limited", "message": "Too many messages. Please wait a minute."})
+    if loader.leaf_unavailable_reason():
+        loader.require("leaf")                      # 503 "Leaf model not available online yet."
     data = await read_upload(photo)
     try:
         suffix = await run_in_threadpool(leaf.validate, data)
@@ -96,16 +112,14 @@ async def chat_image(request: Request, photo: UploadFile = File(...), message: s
     fd, path = tempfile.mkstemp(suffix=suffix, dir=str(settings.upload_dir))
     with os.fdopen(fd, "wb") as f:
         f.write(data)
+    text = (message.strip() or "Please check this leaf photo for disease.")
+    prompt = f"{text}\n\n[The user attached a leaf photo saved at: {path}. Use detect_plant_disease on it.]"
     try:
-        text = (message.strip() or "Please check this leaf photo for disease.")
-        prompt = f"{text}\n\n[The user attached a leaf photo saved at: {path}. Use detect_plant_disease on it.]"
-        result = await _handle(prompt, conversation_id, user, db)
-    finally:
-        try:
-            os.remove(path)
-        except OSError:
-            pass
-    return result
+        return await _handle(prompt, conversation_id, user, db, temp_file=path)
+    except Exception as e:
+        if not (isinstance(e, HTTPException) and e.status_code == 504):
+            _remove(path)      # on a timeout the still-running worker deletes it when done
+        raise
 
 
 @router.get("/history")

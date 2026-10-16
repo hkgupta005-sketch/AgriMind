@@ -1,5 +1,9 @@
-// API service layer. All requests go to /api (proxied to FastAPI in development).
+// API service layer. Every request goes to `${VITE_API_URL}/api/...`
+// (VITE_API_URL empty in development: /api is proxied to FastAPI by Vite).
 // No secrets live in the frontend; the session token only identifies this browser's account.
+
+export const API_URL = (import.meta.env.VITE_API_URL ?? "").trim().replace(/\/+$/, "");
+export const apiUrl = (path: string) => `${API_URL}/api${path}`;
 
 const TOKEN_KEY = "agrimind.token";
 
@@ -46,12 +50,12 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   opts.signal?.addEventListener("abort", () => ctrl.abort());
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, { method: opts.method ?? (body ? "POST" : "GET"), headers, body, signal: ctrl.signal });
+    res = await fetch(apiUrl(path), { method: opts.method ?? (body ? "POST" : "GET"), headers, body, signal: ctrl.signal });
   } catch (e) {
     if (opts.signal?.aborted) throw e;
     throw new ApiError(0, ctrl.signal.aborted
       ? "The server took too long to answer. Please try again."
-      : "Cannot reach the AgriMind server. Check that the backend is running.", "network");
+      : `Cannot reach the AgriMind server at ${API_URL || window.location.origin}. It may be starting up (wait a minute), or it is blocked by CORS.`, "network");
   } finally {
     clearTimeout(timer);
   }
@@ -60,7 +64,13 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   try { data = text ? JSON.parse(text) : null; } catch { data = null; }
   if (!res.ok) {
     const err = data?.error;
-    throw new ApiError(res.status, err?.message ?? `Request failed (${res.status})`, err?.code ?? null, err?.detail ?? null);
+    const fallback = typeof data?.detail === "string" ? data.detail
+      : text && !text.trimStart().startsWith("<") ? text.slice(0, 300) : `${res.status} ${res.statusText}`.trim();
+    throw new ApiError(res.status, err?.message ?? `Request failed: ${fallback}`, err?.code ?? null, err?.detail ?? null);
+  }
+  if (data === null && text) {
+    // e.g. an HTML page: the request went to the static site instead of the API
+    throw new ApiError(res.status, `The server at ${API_URL || window.location.origin} did not answer with JSON. Check VITE_API_URL.`, "bad_response");
   }
   return data as T;
 }

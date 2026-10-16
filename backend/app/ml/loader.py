@@ -68,6 +68,20 @@ def _find(key):
     return None
 
 
+LEAF_OFFLINE = "Leaf model not available online yet"
+
+
+def leaf_unavailable_reason():
+    """Why the leaf model cannot run here (no TensorFlow or no .keras file, as on Render), or None."""
+    if not settings.leaf_enabled:
+        return "turned off (LEAF_MODEL_ENABLED=false)"
+    if importlib.util.find_spec("tensorflow") is None:
+        return "TensorFlow is not installed on this server"
+    if not (ML_DIR / "models" / "plant_disease_model.keras").exists():
+        return "models/plant_disease_model.keras is not on this server"
+    return None
+
+
 def get(key):
     """The loaded module, or None if it is missing/broken (status explains why)."""
     if key in _modules:
@@ -75,6 +89,11 @@ def get(key):
     with _locks[key]:
         if key in _modules:
             return _modules[key]
+        if key == "leaf":
+            reason = leaf_unavailable_reason()
+            if reason:
+                _status[key] = {"state": "unavailable", "error": f"{LEAF_OFFLINE}: {reason}"}
+                return None
         path = _find(key)
         if path is None:
             _status[key] = {"state": "missing",
@@ -106,6 +125,9 @@ def get(key):
 def require(key):
     module = get(key)
     if module is None:
+        if _status[key]["state"] == "unavailable":
+            raise HTTPException(503, {"code": "leaf_offline", "message": f"{LEAF_OFFLINE}.",
+                                      "detail": _status[key]["error"]})
         raise HTTPException(503, {"message": f"{LABELS[key]} is not configured yet.",
                                   "detail": _status[key]["error"]})
     return module
@@ -139,8 +161,8 @@ def preload():
             csv(name)
         except Exception as e:  # noqa: BLE001
             log.warning("Could not read %s: %s", name, e)
-    if settings.preload_leaf_model:
-        get("leaf")
+    if settings.preload_leaf_model or leaf_unavailable_reason():
+        get("leaf")                             # also sets the "unavailable" status right away
 
 
 def start_preload():

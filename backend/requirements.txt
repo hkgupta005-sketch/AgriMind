@@ -1,18 +1,19 @@
-# AgriMind web backend
-fastapi>=0.110
-uvicorn[standard]>=0.29
-pydantic>=2.6
-python-multipart>=0.0.9
-python-dotenv>=1.0
-SQLAlchemy>=2.0
-mysql-connector-python>=8.3
-# Used by the existing AgriMind models (match the versions they were trained with)
-joblib
-numpy
-pandas
-scipy
-scikit-learn
-Pillow
-# Leaf prediction model (.keras) and the Gemini assistant (chatbot.py)
-tensorflow
-google-genai
+# AgriMind web backend (Render: root "backend", build "pip install -r requirements.txt")
+# TensorFlow is deliberately NOT here: the leaf model is not deployed online yet.
+# For the leaf model locally: pip install tensorflow
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+pydantic==2.13.4
+python-multipart==0.0.32
+python-dotenv==1.0.1
+SQLAlchemy==2.0.54
+mysql-connector-python==26.7.0
+# The AgriMind .pkl models: keep scikit-learn at the version they were trained with
+scikit-learn==1.7.2
+joblib==1.5.3
+numpy==2.2.6
+pandas==2.3.3
+scipy==1.15.3
+Pillow==12.3.0
+# AgriMind Assistant (chatbot.py)
+google-genai==2.14.0

@@ -71,16 +71,18 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         form.append("photo", photo);
         form.append("message", clean);
         if (conversation.current) form.append("conversation_id", conversation.current);
-        r = await api<ChatReply>("/chat/image", { form, timeoutMs: 75000 });
+        r = await api<ChatReply>("/chat/image", { form, timeoutMs: 130000 });
       } else {
-        r = await api<ChatReply>("/chat", { body: { message: clean, conversation_id: conversation.current, page }, timeoutMs: 75000 });
+        r = await api<ChatReply>("/chat", { body: { message: clean, conversation_id: conversation.current, page }, timeoutMs: 130000 });
       }
       conversation.current = r.conversation_id;
       setMessages((m) => [...m, { id: `a${Date.now()}`, role: "assistant", text: r.reply, tools: r.tools_used, at: new Date().toISOString() }]);
       setJustAnswered((n) => n + 1);
       if (!openRef.current) setUnread(true);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Something went wrong. Please try again.";
+      const msg = e instanceof ApiError
+        ? (typeof e.detail === "string" && e.detail && !e.message.includes(e.detail) ? `${e.message} (${e.detail})` : e.message)
+        : e instanceof Error ? `Error: ${e.message}` : String(e);
       setMessages((m) => [...m, { id: `e${Date.now()}`, role: "error", text: msg, at: new Date().toISOString() }]);
       if (!openRef.current) setUnread(true);
     } finally {

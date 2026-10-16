@@ -46,7 +46,7 @@ export function ErrorState({ error, onRetry, compact }: { error: ApiError | Erro
       <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${unavailable ? "text-warn" : "text-danger"}`} aria-hidden />
       <div className="flex-1">
         <p className="text-ink">{msg}</p>
-        {error instanceof ApiError && typeof error.detail === "string" && unavailable && (
+        {error instanceof ApiError && typeof error.detail === "string" && error.detail && !msg.includes(error.detail) && (
           <p className="mt-1 text-xs text-ink-muted">{error.detail}</p>
         )}
       </div>

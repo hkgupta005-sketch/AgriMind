@@ -35,9 +35,13 @@ PREFILL = {
 
 
 class AssistantError(Exception):
-    def __init__(self, code, message, status=503):
+    def __init__(self, code, message, status=503, detail=None):
         super().__init__(message)
-        self.code, self.message, self.status = code, message, status
+        self.code, self.message, self.status, self.detail = code, message, status, detail
+
+
+def _reason(e):
+    return f"{type(e).__name__}: {str(e)[:300]}"
 
 
 _calls = threading.local()
@@ -52,7 +56,8 @@ def _get_bot():
         return _bot
     bot = loader.get("chatbot")
     if bot is None:
-        raise AssistantError("not_configured", "Assistant not configured yet.")
+        raise AssistantError("not_configured", "Assistant not configured yet.",
+                             detail=loader.status()["chatbot"]["error"])
     # share the backend's loaded models with the chatbot (same keys chatbot.py uses)
     for ours, theirs in (("production", "production"), ("crop", "crop"), ("price", "price"),
                          ("irrigation", "irrigation"), ("leaf", "disease")):
@@ -111,17 +116,18 @@ def ask_blocking(message, previous_id):
         reply, new_id = bot.ask(client, message, previous_id)
     except RuntimeError as e:
         if "busy" in str(e).lower():
-            raise AssistantError("busy", "The assistant is busy, please try again in a minute.")
-        raise AssistantError("error", "The assistant could not answer right now. Please try again.", 502)
+            raise AssistantError("busy", "The assistant is busy, please try again in a minute.", detail=_reason(e))
+        raise AssistantError("error", f"The assistant could not answer: {_reason(e)}", 502)
     except AssistantError:
         raise
     except Exception as e:  # noqa: BLE001
         text = str(e).lower()
         if any(k in text for k in ("api key", "api_key", "permission", "401", "403")):
-            raise AssistantError("not_configured", "Assistant not configured yet (the Gemini key was rejected).")
+            raise AssistantError("not_configured", "Assistant not configured yet (the Gemini key was rejected).",
+                                 detail=_reason(e))
         if any(k in text for k in ("503", "429", "unavailable", "overloaded", "exhausted")):
-            raise AssistantError("busy", "The assistant is busy, please try again in a minute.")
-        raise AssistantError("error", "The assistant could not answer right now. Please try again.", 502)
+            raise AssistantError("busy", "The assistant is busy, please try again in a minute.", detail=_reason(e))
+        raise AssistantError("error", f"The assistant could not answer: {_reason(e)}", 502)
     finally:
         calls, _calls.log = _calls.log, None
     return reply, new_id, _describe(calls)

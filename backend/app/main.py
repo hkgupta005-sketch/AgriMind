@@ -22,6 +22,8 @@ from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+from sqlalchemy.exc import SQLAlchemyError  # noqa: E402
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
 from .config import settings  # noqa: E402
 from .db import init_db  # noqa: E402
@@ -36,7 +38,21 @@ app = FastAPI(title="AgriMind API", version="2.0",
               description="Crop production, pre-irrigation, leaf disease, mandi price and crop recommendation "
                           "models from the AgriMind project, plus saved history and the AgriMind Assistant.")
 
-app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins), allow_credentials=False,
+
+async def unexpected_error(request: Request, call_next):
+    """Catch-all as a middleware inside CORS, so even a 500 reaches the browser with its message
+    (a plain exception_handler(Exception) answers outside CORS and the browser hides it)."""
+    try:
+        return await call_next(request)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("Unhandled error: %s", exc)   # full traceback stays in the server log
+        return JSONResponse({"error": {"message": f"Server error: {type(exc).__name__}: {str(exc)[:200]}",
+                                       "code": "server_error", "detail": None}}, status_code=500)
+
+
+app.add_middleware(BaseHTTPMiddleware, dispatch=unexpected_error)   # added first = inside CORS
+app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins),
+                   allow_origin_regex=settings.cors_origin_regex or None, allow_credentials=False,
                    allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"])
 
 
@@ -62,11 +78,11 @@ async def validation_error(_: Request, exc: RequestValidationError):
     return JSONResponse({"error": {"message": message, "code": "validation", "detail": fields}}, status_code=422)
 
 
-@app.exception_handler(Exception)
-async def unexpected_error(_: Request, exc: Exception):
-    log.exception("Unhandled error: %s", exc)       # details stay in the server log only
-    return JSONResponse({"error": {"message": "Something went wrong on the server. Please try again.",
-                                   "code": "server_error", "detail": None}}, status_code=500)
+@app.exception_handler(SQLAlchemyError)
+async def database_error(_: Request, exc: SQLAlchemyError):
+    log.error("Database error: %s", exc)
+    return JSONResponse({"error": {"message": "Saving is unavailable: the database is not reachable.",
+                                   "code": "no_database", "detail": type(exc).__name__}}, status_code=503)
 
 
 for r in (system.router, account.router, dashboard.router, production.router, irrigation.router, leaf.router,

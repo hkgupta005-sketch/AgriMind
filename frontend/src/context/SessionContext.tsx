@@ -35,7 +35,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refreshHealth = useCallback(async () => {
     try {
-      setHealth(await api<Health>("/health", { timeoutMs: 8000 }));
+      // long timeout: a sleeping Render free instance needs up to a minute to wake up
+      setHealth(await api<Health>("/health", { timeoutMs: 60000 }));
       setOnline(true);
     } catch {
       setOnline(false);

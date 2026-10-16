@@ -12,6 +12,7 @@ from datetime import timedelta
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .config import settings
@@ -62,7 +63,9 @@ def _bearer(authorization: str | None) -> str | None:
 
 def require_db():
     if not DB_STATUS["ok"]:
-        raise HTTPException(503, "Saving is unavailable: the database is not connected.")
+        raise HTTPException(503, {"code": "no_database",
+                                  "message": "Saving and login are not available: no database is connected.",
+                                  "detail": DB_STATUS["error"]})
 
 
 def current_user(authorization: str | None = Header(None), db: Session = Depends(get_db)) -> User:
@@ -87,4 +90,6 @@ def optional_user(authorization: str | None = Header(None), db: Session = Depend
     try:
         return current_user(authorization, db)
     except HTTPException:
+        return None
+    except SQLAlchemyError:  # database dropped: still predict, just don't save
         return None

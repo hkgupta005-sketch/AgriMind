@@ -170,7 +170,7 @@ function SystemPanel() {
     <Panel title="System status" icon={ServerCog} actions={<button className="btn-ghost btn-sm" onClick={refreshHealth}>Refresh</button>}>
       {!health ? <p className="text-sm text-ink-muted">Server not reachable.</p> : (
         <ul className="space-y-2 text-sm">
-          <li className="flex items-center justify-between gap-2"><span className="flex items-center gap-2"><Database className="h-4 w-4 text-neon" />Database ({health.database.backend === "mysql" ? "MySQL" : "local SQLite"})</span>
+          <li className="flex items-center justify-between gap-2"><span className="flex items-center gap-2"><Database className="h-4 w-4 text-neon" />Database ({health.database.backend === "mysql" ? "MySQL" : health.database.backend === "none" ? "none — saving off" : "local SQLite"})</span>
             <StatusBadge tone={health.database.connected ? "green" : "red"}>{health.database.connected ? "connected" : "not connected"}</StatusBadge></li>
           {Object.entries(health.models).map(([k, m]) => (
             <li key={k} className="flex items-center justify-between gap-2"><span>{m.label}</span><StatusBadge tone={tone(m.state)}>{m.state}</StatusBadge></li>

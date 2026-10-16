@@ -118,8 +118,10 @@ def describe(r):
 
 def guide():
     plants = supported_plants()
+    offline = loader.leaf_unavailable_reason()
     return {
-        "tool": "leaf", "available": bool(plants) and loader.status()["leaf"]["state"] != "missing",
+        "tool": "leaf", "available": bool(plants) and not offline and loader.status()["leaf"]["state"] != "missing",
+        "unavailable_message": f"{loader.LEAF_OFFLINE}." if offline else None,
         "question": "Is my plant sick?",
         "output": "Plant and condition (e.g. Tomato — Early blight), confidence and next steps",
         "time": "About 30 seconds", "supported_plants": plants,

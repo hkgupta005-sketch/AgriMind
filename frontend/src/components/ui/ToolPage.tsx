@@ -21,10 +21,11 @@ export function ModelStatusNote({ tool }: { tool: ToolKey }) {
   if (m.state === "pending" || m.state === "loading") {
     return <p className="mb-4 flex items-center gap-2 text-sm text-ink-muted"><Spinner /> Loading the {m.label.toLowerCase()}… (the first start can take a little while)</p>;
   }
+  const title = m.state === "unavailable" && tool === "leaf" ? "Leaf model not available online yet." : `${m.label} not configured yet.`;
   return (
     <div className="mb-4 flex items-start gap-3 rounded-lg border border-warn/30 bg-warn/5 px-4 py-3 text-sm" role="status">
       <PlugZap className="mt-0.5 h-4 w-4 text-warn" aria-hidden />
-      <div><p className="text-ink">{m.label} not configured yet.</p>{m.error && <p className="mt-0.5 text-xs text-ink-muted">{m.error}</p>}</div>
+      <div><p className="text-ink">{title}</p>{m.error && <p className="mt-0.5 text-xs text-ink-muted">{m.error}</p>}</div>
     </div>
   );
 }

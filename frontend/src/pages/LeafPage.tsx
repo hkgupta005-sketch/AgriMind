@@ -43,7 +43,7 @@ function PhotoTips({ tips }: { tips: string[] }) {
 }
 
 export default function LeafPage() {
-  const { bumpData } = useSession();
+  const { bumpData, health } = useSession();
   const guide = useGuide("leaf");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -86,6 +86,8 @@ export default function LeafPage() {
     }
   }
 
+  // no TensorFlow / no .keras file on this server (e.g. the Render deployment)
+  const offline = health?.models.leaf.state === "unavailable" || !!guide.data?.unavailable_message;
   const tips = guide.data?.photo_tips ?? [];
   const plants = guide.data?.supported_plants ?? [];
   const guidePanel = (
@@ -133,14 +135,14 @@ export default function LeafPage() {
           </div>
           <p className="mt-2 truncate text-xs text-ink-muted">{file?.name} · {((file?.size ?? 0) / 1024 / 1024).toFixed(1)} MB</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button className="btn-primary" onClick={analyse} disabled={busy}>{busy ? <Spinner /> : <ScanLine className="h-4 w-4" />}Check this leaf</button>
+            <button className="btn-primary" onClick={analyse} disabled={busy || offline} title={offline ? "Leaf model not available online yet" : undefined}>{busy ? <Spinner /> : <ScanLine className="h-4 w-4" />}Check this leaf</button>
             <button className="btn-secondary" onClick={() => picker.current?.click()} disabled={busy}><RefreshCw className="h-4 w-4" />Replace</button>
             <button className="btn-ghost" onClick={() => { setFile(null); setPreview(null); setResult(null); }} disabled={busy}><Trash2 className="h-4 w-4" />Remove</button>
           </div>
         </div>
       )}
       {fileError && <p className="mt-2 text-sm text-danger" role="alert">{fileError}</p>}
-      {error && <div className="mt-4"><ErrorState error={error.unavailable ? new ApiError(503, "Leaf prediction model not configured yet.", null, error.detail) : error} compact /></div>}
+      {error && <div className="mt-4"><ErrorState error={error.unavailable && error.code !== "leaf_offline" && error.code !== "no_database" ? new ApiError(503, "Leaf prediction model not configured yet.", null, error.detail) : error} compact /></div>}
       <p className="mt-4 text-xs text-ink-faint">Your photo is only used for this check and then deleted; a small thumbnail is kept with your saved result.</p>
     </Panel>
   );
@@ -148,7 +150,7 @@ export default function LeafPage() {
   const resultPanel = (
     <Panel title="Result" icon={ScanLine}>
       {!result ? (
-        <ResultEmpty icon={Leaf} title="The diagnosis will appear here" lines={["Plant and condition, e.g. “Tomato leaf — Early blight”", "How sure the model is", "What to do next"]} />
+        <ResultEmpty icon={Leaf} title={offline ? "Leaf model not available online yet" : "The diagnosis will appear here"} lines={offline ? ["The other AgriMind tools and the assistant work as usual."] : ["Plant and condition, e.g. “Tomato leaf — Early blight”", "How sure the model is", "What to do next"]} />
       ) : (
         <div className="space-y-4 animate-fade-up" aria-live="polite">
           <div>

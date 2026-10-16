@@ -67,7 +67,7 @@ def login(body: Credentials, db: Session = Depends(get_db)):
 @router.post("/auth/logout")
 def logout(authorization: str | None = Header(None), db: Session = Depends(get_db)):
     token = auth._bearer(authorization)
-    if token:
+    if token and db is not None:
         auth.end_session(db, token)
     return {"ok": True}
 
