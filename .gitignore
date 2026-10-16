@@ -23,3 +23,8 @@ dist/
 train/
 ezgif-*/
 reports/models/plant_disease_model.keras
+
+models/plant_disease_model.keras
+models/*.keras
+reports/
+backend/data/*.db
